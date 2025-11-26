@@ -1,18 +1,5 @@
 function [lambda_opt, tariff_opt] = estimate_lambda_gn_noUB(j, TARIFFs, TARGET_ALL, LAMBDA_OSSA)
-%==========================================================================
-% Estimate political economy weights using Gauss-Newton method
-%
-% Inputs:
-%   j           - Country index
-%   TARIFFs     - Tariff matrix (N x N x S)
-%   TARGET_ALL  - Target tariffs (S x N)
-%   LAMBDA_OSSA - Ossa's lambda estimates (S x N)
-%
-% Outputs:
-%   lambda_opt  - Estimated weights (S x 1)
-%   tariff_opt  - Optimal tariffs under lambda_opt (S x 1)
-%==========================================================================
- 
+
 N = size(TARIFFs, 1);
 S = size(TARGET_ALL, 1);
 T_target = TARGET_ALL(:, j);
