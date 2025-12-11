@@ -1,82 +1,77 @@
-function [comparison_table] = evaluate_comparison(TARIFFs, TARGET_ALL, LAMBDA_OSSA, LAMBDA_GN, TARIFF_OSSA, TARIFF_GN)
-%==========================================================================
-% Evaluate and compare Ossa vs GN results
-%
-% Inputs:
-%   TARIFFs      - Tariff matrix (N x N x S)
-%   TARGET_ALL   - Target tariffs (S x N)
-%   LAMBDA_OSSA  - Ossa's lambda (S x N)
-%   LAMBDA_GN    - GN lambda (S x N)
-%   TARIFF_OSSA  - Ossa's optimal tariffs (S x N)
-%   TARIFF_GN    - GN optimal tariffs (S x N)
-%
-% Outputs:
-%   comparison_table - Table with RSS, GradNorm
-%==========================================================================
+function [comparison_table] = evaluate_comparison(TARIFFs, TARGET_ALL, LAMBDA_OSSA, LAMBDA_LM, TARIFF_OSSA, TARIFF_LM)
 
 N = size(TARIFFs, 1);
 S = size(TARGET_ALL, 1);
 
 % Initialize storage
 RSS_Ossa = nan(N, 1);
-RSS_GN = nan(N, 1);
+RSS_LM = nan(N, 1);
 GradNorm_Ossa = nan(N, 1);
-GradNorm_GN = nan(N, 1);
+GradNorm_LM = nan(N, 1);
 Lambda_Corr = nan(N, 1);
-Lambda_MAE = nan(N, 1);
-Lambda_MaxDiff = nan(N, 1);
 Tariff_Corr = nan(N, 1);
-Tariff_MAE = nan(N, 1);
-Tariff_MaxDiff = nan(N, 1);
+Tariff_Spearman = nan(N, 1);
+
+fprintf('\nEvaluating Ossa and LM Results\n\n');
+
+% Set parameters (same as LM estimation)
+params.eps_fd = 7e-4;
+params.use_smooth_hinge = true;
+params.tau = 1e-3;
 
 % Evaluate each country
 for j = 1:N
-    T_target = TARGET_ALL(:, j);
+    fprintf('Evaluating Country %d/%d...', j, N);
     
-    % Set parameters
-    if j == 5
-        params.eps_fd = 5e-4;
-        params.use_smooth_hinge = true;
-        MFN_guess = T_target;
-    elseif ismember(j, [2, 3, 7])
-        params.eps_fd = 7e-4;
-        params.use_smooth_hinge = true;
-        MFN_guess = mean(T_target) * ones(S, 1);
-    else
-        params.eps_fd = 5e-4;
-        params.use_smooth_hinge = true;
-        MFN_guess = mean(T_target) * ones(S, 1);
-    end
+    T_target = TARGET_ALL(:, j);
+    MFN_guess = mean(T_target) * ones(S, 1);
     
     % Evaluate Ossa
     lambda_ossa = LAMBDA_OSSA(:, j);
     [RSS_Ossa(j), GradNorm_Ossa(j)] = evaluate_lambda(j, lambda_ossa, TARIFFs, TARGET_ALL, MFN_guess, params);
     
-    % Evaluate GN
-    lambda_gn = LAMBDA_GN(:, j);
-    [RSS_GN(j), GradNorm_GN(j)] = evaluate_lambda(j, lambda_gn, TARIFFs, TARGET_ALL, MFN_guess, params);
+    % Evaluate LM
+    lambda_lm = LAMBDA_LM(:, j);
+    [RSS_LM(j), GradNorm_LM(j)] = evaluate_lambda(j, lambda_lm, TARIFFs, TARGET_ALL, MFN_guess, params);
     
-    % Lambda comparison
-    Lambda_Corr(j) = corr(lambda_ossa, lambda_gn);
-    Lambda_MAE(j) = mean(abs(lambda_ossa - lambda_gn));
-    Lambda_MaxDiff(j) = max(abs(lambda_ossa - lambda_gn));
+    % Lambda comparison (Pearson correlation)
+    Lambda_Corr(j) = corr(lambda_ossa, lambda_lm);
     
     % Tariff comparison
     tariff_ossa = TARIFF_OSSA(:, j);
-    tariff_gn = TARIFF_GN(:, j);
-    Tariff_Corr(j) = corr(tariff_ossa, tariff_gn);
-    Tariff_MAE(j) = mean(abs(tariff_ossa - tariff_gn));
-    Tariff_MaxDiff(j) = max(abs(tariff_ossa - tariff_gn));
+    tariff_lm = TARIFF_LM(:, j);
+    
+    % Correlation
+    Tariff_Corr(j) = corr(tariff_ossa, tariff_lm);
+    
+    fprintf('RSS: Ossa=%.4e, LM=%.4e | Grad: Ossa=%.4e, LM=%.4e\n', ...
+            RSS_Ossa(j), RSS_LM(j), GradNorm_Ossa(j), GradNorm_LM(j));
 end
+
+fprintf('\nEvaluation Completed.\n\n');
 
 % Create comparison table
 comparison_table = table((1:N)', ...
-                         RSS_Ossa, RSS_GN, ...
-                         GradNorm_Ossa, GradNorm_GN, ...
-                         'VariableNames', {'Country', 'RSS_Ossa', 'RSS_GN', ...
-                                          'GradNorm_Ossa', 'GradNorm_GN'});
+                         RSS_Ossa, RSS_LM, ...
+                         GradNorm_Ossa, GradNorm_LM, ...
+                         Lambda_Corr, ...
+                         Tariff_Corr, Tariff_Spearman, ...
+                         'VariableNames', {'Country', ...
+                                          'RSS_Ossa', 'RSS_LM', ...
+                                          'GradNorm_Ossa', 'GradNorm_LM', ...
+                                          'Lambda_Corr', ...
+                                          'Tariff_Corr'});
+
+% Display summary
+fprintf('RSS: Ossa mean=%.4e, LM mean=%.4e\n', mean(RSS_Ossa), mean(RSS_LM));
+fprintf('GradNorm: Ossa mean=%.4e, LM mean=%.4e\n', mean(GradNorm_Ossa), mean(GradNorm_LM));
+fprintf('Lambda Corr: mean=%.4f, min=%.4f, max=%.4f\n', ...
+        mean(Lambda_Corr), min(Lambda_Corr), max(Lambda_Corr));
+fprintf('Tariff Corr: mean=%.4f, min=%.4f, max=%.4f\n', ...
+        mean(Tariff_Corr), min(Tariff_Corr), max(Tariff_Corr));
 
 end
+
 
 % Helper function: Evaluate RSS and Gradient Norm for given lambda
 function [rss, grad_norm] = evaluate_lambda(j, lambda, TARIFFs, TARGET_ALL, MFN_guess, params)
@@ -99,16 +94,8 @@ else
     C = eye(S) - (ones(S, 1) * ones(S, 1)') / S;
 end
 
-% Tau for smooth hinge (final value)
-if params.use_smooth_hinge
-    if j == 5
-        tau = 1e-4;
-    else
-        tau = 1e-3;
-    end
-else
-    tau = 0;
-end
+% Tau for smooth hinge (final value from LM)
+tau = params.tau;
 
 % Compute optimal tariff
 LAMBDA = ones(N, S);
