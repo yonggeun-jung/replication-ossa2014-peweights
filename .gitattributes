@@ -1,0 +1,4 @@
+# Batch scripts run on a Linux cluster and are rejected by SLURM if they carry
+# DOS line breaks, so keep them LF regardless of the checkout platform.
+*.sbatch text eol=lf
+*.sh     text eol=lf

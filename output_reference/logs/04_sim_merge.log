@@ -1,0 +1,6 @@
+trial        :   300 rows, 0 files missing -> 05_output/sim/sim_trial_all.csv
+lambda       :   400 rows, 0 files missing -> 05_output/sim/sim_lambda_all.csv
+spectrum     :  3300 rows, 0 files missing -> 05_output/sim/sim_spectrum_all.csv
+starts       :  1500 rows, 0 files missing -> 05_output/sim/sim_starts_all.csv
+startlambda  :  1500 rows, 0 files missing -> 05_output/sim/sim_startlambda_all.csv
+wrote 05_output/hpg_logs/03_simulation_run.log

@@ -1,2 +1,10 @@
+# macOS
 .DS_Store
-**/.DS_Store
+
+# MATLAB autosave and session files
+*.asv
+*.autosave
+
+# Python
+__pycache__/
+*.pyc
